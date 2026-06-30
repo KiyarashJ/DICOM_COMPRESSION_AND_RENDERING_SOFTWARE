@@ -1,0 +1,220 @@
+Prerequisities: 
+
+1_Windowleveltool
+2_Enum : Activetool
+3_Signal : use_signal(|| Windowleveltool {width: f64 , center: f64, last_mouse_x: f64 , last_mouse_y : f64 , is_dragging: bool})
+4_Mouse Event : onmousedown , onmousemove , onmouseleave , onmouseup
+5_required : button , img , div tags
+
+
+How does it work : 
+User clicks on the Windowleveltool, Activetool is set to Windowlevel , afterwards user whenever 
+starts to keep left-click of mouse down, is_dragging immediately turns true,
+eventually windowlevel tool is gonna get changed with mouse move , 
+if mouse drag is on the x axis ,windowlevel is gonna change the contrast by percentage 
+if mouse drag is on the y axis ,windowlevel is gonna change the brightness by percentage 
+at the end , whenever user releases left-click , is_dragging turns false and tool stops working !
+
+
+
+
+
+How does it work by shape : 
+
+1_ToolsButtons component : 
+
+button {
+    class: "md:w-20 md:h-1/5 lg:w-35 lg:h-1/7 bg-white/30 flex justify-center items-center hover:bg-white/80 transition-all ease-out cursor-pointer hover:rounded-xl hover:scale-105 hover:shadow-sm hover:text-black z-10 m-2",
+    onclick: move |_| { tools_activity.write().activetool = tool_name },
+    "{btn_name}"
+}
+    👇
+    👇
+    Activetool is set to Windowlevel tool
+    👇
+    👇
+    ****(here user starts to keep left-click of mouse down)
+2_Renderuserfile component : 
+
+ img {
+    draggable: false,
+    class: "w-full h-full object-contain cursor-move",
+    src: "data:image/png;base64,{current_base64}",
+    style: "transform-origin: {zoom_scale_signal.read().zoom_x}px {zoom_scale_signal.read().zoom_y}px; transform: translate({pan_signal.read().translate_x}px, {pan_signal.read().translate_y}px) scale({zoom_scale_signal.read().scale_amount});",
+    onmousedown: move |e| {
+        e.prevent_default();
+        if files.read().activetool == Activetool::Pan {
+            tool_set_down(e , Setdown::Pan(pan_signal));
+        } else {
+            tool_set_down(e , Setdown::Windowlevel(window_signal));
+        }
+    },
+}
+    👇
+    👇
+    onmousedown event starts working : prevent the default behavior of onmousedown , 
+    (because when you keep left-click down and moves it the default behaviour thinks
+    you want to drag and drop sth or copy sth ! and does not let move or works unproperly),
+    afterwards checks whether the windowleveltool is activated ! if true : execute the tool_set_down
+    function 
+    👇
+    👇
+3_tool_set_down function : 
+
+pub fn tool_set_down(e: MouseEvent, tool_signal : Setdown) {
+    let coordinates = e.page_coordinates();
+    match tool_signal {
+        Setdown::None => {},
+        Setdown::Pan( mut signal) => {
+            signal.with_mut(|c| {
+                c.is_dragging = true;
+                c.last_mouse_x = coordinates.x;
+                c.last_mouse_y = coordinates.y;
+            });
+        },
+        Setdown::Windowlevel( mut signal) => {
+            signal.with_mut(|c| {
+                c.is_dragging = true;
+                c.last_mouse_x = coordinates.x;
+                c.last_mouse_y = coordinates.y;
+            });
+        }
+    }
+}
+    👇
+    👇
+    here gets the coordinations of page (not element ! we move it by screen not by element)
+    thereafter we need to specify the type of signal , which is being given to this 
+    function due to variety of functions of every tool ! if None then do nothing !
+    if Pan : set the coordinates to mouse previous position, set is_dragging true,     
+    if windowlevel : set the coordinates to mouse previous position, set is_dragging true,     
+    👇
+    👇
+4_ Renderusefile component : 
+img {
+    draggable: false,
+    class: "w-full h-full object-contain cursor-move",
+    src: "data:image/png;base64,{current_base64}",
+    style: "transform-origin: {zoom_scale_signal.read().zoom_x}px {zoom_scale_signal.read().zoom_y}px; \
+    onmousemove: move |e| {
+        if files.read().activetool == Activetool::Pan {
+            tool_set_move(e, Setdown::Pan(pan_signal));
+        } else {
+            tool_set_move(e, Setdown::Windowlevel(window_signal));
+        }
+    },
+}
+    👇
+    👇
+    onmousemove events starts working or being activated and checks whether activetool is set
+    to windowlevel. if true : calls the tool_set_move function
+    👇
+    👇
+5_tool_set_move:
+
+pub fn tool_set_move(e: MouseEvent, tool_signal: Setdown){
+        let coordinates = e.page_coordinates();
+        match tool_signal {
+            Setdown::None => {}
+            Setdown::Pan(mut signal) => {
+                let is_dragging = signal.read().is_dragging;
+                if is_dragging {
+                let last_x = signal.read().last_mouse_x;
+                let last_y = signal.read().last_mouse_y;
+                let delta_y = coordinates.y - last_y;
+                let delta_x = coordinates.x - last_x;
+                signal.with_mut(|c| {
+                    c.translate_x += delta_x;
+                    c.translate_y += delta_y;
+                    c.last_mouse_x = coordinates.x; 
+                    c.last_mouse_y = coordinates.y;
+                });
+            }
+                }      
+            Setdown::Windowlevel(mut signal) => {
+                let is_dragging = signal.read().is_dragging;
+                if is_dragging {
+                    let last_x = signal.read().last_mouse_x;
+                let last_y = signal.read().last_mouse_y;
+                let delta_y = coordinates.y - last_y;
+                let delta_x = coordinates.x - last_x;
+                signal.with_mut(|c| {
+                    c.width += delta_x * 2.0; 
+                    if c.width < 1.0 { c.width = 1.0; }
+                    c.center -= delta_y * 2.0; 
+                    c.last_mouse_x = coordinates.x;
+                    c.last_mouse_y = coordinates.y;
+                });
+                }
+                
+            }
+        }
+}
+    👇
+    👇
+    get coordinates , checks the type of signal which is being given as parameter,
+    if pan : is_dragging == true ? then get new coordinates of mouse, get the last coordinates of mouse
+    subtract them , give it to translate_x , translate_y and set the new page_coordinates
+    also to last_position of mouse ! 
+
+    if windowlevel : if is_dragging == true ? then get new coordinates of mouse ,
+    get the last position of mouse subtract them , then ====> 
+    multiply delta_x by 2 and add it to width ,because we set the contrast by this value
+    if c.width < 1.0 {c.width = 1.0} =>if the width less than 1 , the number is gonna
+    be so greater , that is like 400 / 0.1 * 100 => contrast: 400000%; ! that does
+    not make sanse ! 
+    multiply delta_y by 2 and subtract it from center ! 
+    at the end set the new coordinates to the last position of mouse ! 
+    👇
+    👇
+6_Renderuserfile component : 
+
+
+ div {
+    class: "md:w-9/10 md:h-9/10 lg:w-6/10 lg:h-17/20 rounded-3xl shadow-2xl overflow-hidden bg-black flex justify-center items-center",
+    onmouseup: move |_| {
+        tool_set_up(Setdown::Pan(pan_signal));
+        tool_set_up(Setdown::Windowlevel(window_signal));
+    },
+    onmouseleave: move |_| {
+        tool_set_up(Setdown::Pan(pan_signal));
+        tool_set_up(Setdown::Windowlevel(window_signal));
+    },
+    img {
+    style: "transform-origin: {zoom_scale_signal.read().zoom_x}px {zoom_scale_signal.read().zoom_y}px; \
+            transform: translate({pan_signal.read().translate_x}px, {pan_signal.read().translate_y}px) scale({zoom_scale_signal.read().scale_amount}); \
+            ** filter: contrast({css_contrast}%) brightness({css_brightness}%);",
+            //starred line is our code to set contrast and brightness of our windowlevel
+            //tool ! 
+
+    }
+}
+    👇
+    👇
+    (here has 2 conditions : 
+    if user gets out of image tag , automatically onmouseleave will be activated , 
+    on the other condition user have to set free the left-click of mouse! )
+    onmouseleave and onmouseup : 
+    checks whether pan tool is activated , calls tool_set_up function
+    👇
+    👇
+7_tool_set_up function : 
+
+pub fn tool_set_up(signal: Setdown) {
+    match signal {
+        Setdown::None => {}
+        Setdown::Pan(mut tool_signal) => {
+            tool_signal.with_mut(|f| {
+                f.is_dragging = false;
+            });
+        }
+        Setdown::Windowlevel(mut tool_signal) => {
+            tool_signal.with_mut(|f| {
+                f.is_dragging = false;
+            });
+        }
+    }
+}
+    👇
+    👇
+    here just turns is_dragging to false ! when the is_dragging is false onwmousemove won't work.

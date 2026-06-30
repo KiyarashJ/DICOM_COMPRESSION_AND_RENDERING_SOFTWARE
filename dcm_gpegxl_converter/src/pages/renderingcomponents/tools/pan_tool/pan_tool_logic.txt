@@ -1,0 +1,165 @@
+Prerequisities: 
+
+1_Struct : Pantool
+2_Enum : Activetool
+3_Context: use_context()
+4_Signal : use_signal(|| Pantool {translate_x: f64, translate_y : f64, is_dragging : bool , last_mouse_x : f64 , last_mouse_y : f64})
+5_Mouse Event : onmousedown , onmousemove , onmouseup , onmouseleave
+6_ required: button , img , div tags
+
+
+How does it work : 
+when the user clicks on the pan tool button , Activetool is set to Pan , afterwards when the user clicks
+and keep the left-click down is_dragging immediately to true , whenever user moves the mouse (left-click
+kept down) the image also moves with the exact langtitude and latitude of mouse , at the end when the user
+stops keeping left-click of mouse is_dragging turns false and image stops moving !
+
+
+
+
+How does it work by shape : 
+
+1_ToolsButtons component : 
+
+button {
+    class: "md:w-20 md:h-1/5 lg:w-35 lg:h-1/7 bg-white/30 flex justify-center items-center hover:bg-white/80 transition-all ease-out cursor-pointer hover:rounded-xl hover:scale-105 hover:shadow-sm hover:text-black z-10 m-2",
+    onclick: move |_| { tools_activity.write().activetool = tool_name },
+    "{btn_name}"
+}
+    👇
+    👇
+    Activetool is set to pan tool
+    👇
+    👇
+    ****(here user starts to keep left-click of mouse down)
+2_Renderuserfile component : 
+
+ img {
+    draggable: false,
+    class: "w-full h-full object-contain cursor-move",
+    src: "data:image/png;base64,{current_base64}",
+    style: "transform-origin: {zoom_scale_signal.read().zoom_x}px {zoom_scale_signal.read().zoom_y}px; transform: translate({pan_signal.read().translate_x}px, {pan_signal.read().translate_y}px) scale({zoom_scale_signal.read().scale_amount});",
+    onmousedown: move |e| {
+        e.prevent_default();
+        if files.read().activetool == Activetool::Pan {
+            pan_set_down(e, pan_signal);
+        }
+    },
+}
+    👇
+    👇
+    onmousedown event starts working : prevent the default behavior of onmousedown , 
+    (because when you keep left-click down and moves it the default behaviour thinks
+    you want to drag and drop sth or copy sth ! and does not let move or works unproperly),
+    afterwards checks whether the pantool is activated ! if true : execute the pan_set_down
+    function 
+    👇
+    👇
+3_pan_set_down function : 
+
+pub fn pan_set_down(e: MouseEvent, mut pan_signal : Signal<Pantool>) {
+    let coordinates = e.page_coordinates();
+    pan_signal.with_mut(|c| {
+        c.is_dragging = true;
+        c.last_mouse_x = coordinates.x;
+        c.last_mouse_y = coordinates.y;
+    });
+}
+    👇
+    👇
+    here gets the coordinations of page (not element ! we move it by screen not by element)
+    turns is_dragging to true , sets coordinates of x and y to the last position of mouse
+    (we need the last position due to know the amount of changed langitude and latitude
+    between new position of mouse and previous position of mouse !)
+    👇
+    👇
+    ****(user moves mouse (left-click kept down))
+4_Renderuserfile component: 
+ img {
+    draggable: false,
+    class: "w-full h-full object-contain cursor-move",
+    src: "data:image/png;base64,{current_base64}",
+    style: "transform-origin: {zoom_scale_signal.read().zoom_x}px {zoom_scale_signal.read().zoom_y}px; transform: translate({pan_signal.read().translate_x}px, {pan_signal.read().translate_y}px) scale({zoom_scale_signal.read().scale_amount});",
+    onmousemove: move |e| {
+        if files.read().activetool == Activetool::Pan {
+            pan_set_move(e, pan_signal);
+            if pan_signal.read().is_dragging {}
+        }
+    }
+}
+
+    👇
+    👇
+    onmousemove events starts working or being activated and checks whether activetool is set
+    to pan. if true : calls the pan_set_move function
+    👇
+    👇
+
+5_pan_set_move function : 
+pub fn pan_set_move(e: MouseEvent, mut pan_signal: Signal<Pantool>){
+    let is_dragging = pan_signal.read().is_dragging;
+    
+    if is_dragging {
+        let coordinates = e.page_coordinates();
+        let last_x = pan_signal.read().last_mouse_x;
+        let last_y = pan_signal.read().last_mouse_y;
+        
+        let delta_x = coordinates.x - last_x;
+        let delta_y = coordinates.y - last_y;
+
+        pan_signal.with_mut(|c| {
+            c.translate_x += delta_x;
+            c.translate_y += delta_y;
+            c.last_mouse_x = coordinates.x; 
+            c.last_mouse_y = coordinates.y;
+        });
+    }
+}
+
+    👇
+    👇
+    first checks if is_dragging is true , if true : get the coordinates(new coordinations) ,
+    read the previous position of coordinates of mouse subtract each other , set the delta
+    coordinations to the translates , also the new coordinates which are gotten from coor-
+    dinates variable are set to last position of mouse.
+    👇
+    👇
+6_
+Renderusefile component : 
+ img {
+    draggable: false,
+    class: "w-full h-full object-contain cursor-move",
+    src: "data:image/png;base64,{current_base64}",
+    style: "transform-origin: {zoom_scale_signal.read().zoom_x}px {zoom_scale_signal.read().zoom_y}px; transform: translate({pan_signal.read().translate_x}px, {pan_signal.read().translate_y}px) scale({zoom_scale_signal.read().scale_amount});",
+
+    onmouseup: move |_| {
+        if files.read().activetool == Activetool::Pan {
+            pan_set_up(pan_signal);
+        }
+    },
+    onmouseleave: move |_| {
+        if files.read().activetool == Activetool::Pan {
+            pan_set_up(pan_signal);
+        }
+    },
+}
+    👇
+    👇
+    (here has 2 conditions : 
+    if user gets out of image tag , automatically onmouseleave will be activated , 
+    on the other condition user have to set free the left-click of mouse! )
+    onmouseleave and onmouseup : 
+    checks whether pan tool is activated , calls pan_set_up function
+    👇
+    👇
+7_pan_set_up function:
+pub fn pan_set_up(mut pan_signal: Signal<Pantool>){
+    pan_signal.with_mut(|c|{
+        c.is_dragging = false;
+    });
+}
+    👇
+    👇
+    here just turns is_dragging to false ! when the is_dragging is false onwmousemove won't work.
+
+

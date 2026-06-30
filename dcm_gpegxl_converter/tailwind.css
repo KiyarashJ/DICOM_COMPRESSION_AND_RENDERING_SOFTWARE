@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@source "./src/**/*.{rs,html,css}";
+/* HERE IS THE HOME PAGE CIRCLES ANIMATION START */
+@theme {
+  --animate-firstcircle: firstcircle 3s ease-in-out 100ms infinite alternate;
+  --animate-secondcircle: secondcircle 3s ease-in-out 300ms infinite alternate;
+  --animate-thirdcircle: thirdcircle 3s ease-in-out 600ms infinite alternate;
+  --animate-fourthcircle: fourthcircle 3s ease-in-out 900ms infinite alternate;
+
+  @keyframes firstcircle {
+    0% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(450%, 220%);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+  @keyframes secondcircle {
+    0% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(-450%, 220%);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+  @keyframes thirdcircle {
+    0% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(450%, -220%);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+  @keyframes fourthcircle {
+    0% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(-450%, -220%);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+}
+/* HERE IS THE HOME PAGE CIRCLES ANIMATION END */
+
+/* HERE IS THE START OF SCROLLBAR STYLING */
+ .no-scrollbar::-webkit-scrollbar {
+  background: rgba(255, 255, 255, 0.2);
+} 
+.no-scrollbar {
+    -ms-overflow-style: none;  
+    scrollbar-width: none;
+}
+
+/* HERE IS THE END OF SCROLLBAR STYLING */
